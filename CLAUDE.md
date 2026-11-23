@@ -13,7 +13,7 @@ Ce repo définit les bonnes pratiques ; les projets de développement les appliq
 
 ## Utiliser ce repo dans un projet
 
-- Le `CLAUDE.md` du projet renvoie vers les fiches à appliquer (au minimum `developer/driven-development/development-workflow.md`) et décrit comment il implémente la partie propre à sa stack.
+- Le `CLAUDE.md` du projet renvoie vers les fiches à appliquer (au minimum `developer/driven-development/development-workflow.md` et `developer/ai-agent/agent-practices.md`) et décrit comment il implémente la partie propre à sa stack.
 - Le projet copie `tools/toolbox-checks/` et active son hook (voir son README).
 
 ## Contenu
@@ -31,6 +31,7 @@ developer/
   archi/              Architecture
   driven-development/ Flux de développement et méthodes « pilotées par » (ontologie, spécification)
   security/           Sécurité (ex. dependencies.md)
+  ai-agent/           Comportement de l'agent IA sur un projet (agent-practices.md)
   ...                 Bonnes pratiques dev
 design/
   ux-ui/          Bonnes pratiques design (ex. law-of-ui.md)

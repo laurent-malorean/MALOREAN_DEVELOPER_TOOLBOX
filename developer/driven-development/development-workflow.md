@@ -150,6 +150,21 @@ Code exclu de la mesure : uniquement le code généré et la configuration, list
 | Relecture humaine | Avant intégration | Oui | Ce fichier |
 | Dépendances : failles connues, maintenance | Voir la fiche | Voir la fiche | `../security/dependencies.md` |
 
+### Lancer les bons contrôles au bon moment
+
+Les contrôles lancés dépendent de ce qu'on a touché. Un échec qui se voit en quelques secondes ne doit jamais coûter le temps d'une CI complète.
+
+| Ce qu'on a touché | Ce qu'on lance, en local | Durée |
+|---|---|---|
+| Spécification ou ontologie seulement | Vocabulaire et traçabilité (`toolbox_checks.py commit`, déjà lancé par le hook) | Quelques secondes |
+| Du code, y compris par un remplacement de texte | Mise en forme, analyse du code, tests de la partie touchée | Rapide |
+| Prêt à intégrer | La CI complète, une seule fois | Longue |
+
+- **Rapide avant long** : on ne lance la CI complète qu'une fois les contrôles rapides de la partie touchée au vert.
+- **Un remplacement mécanique est une modification comme une autre.** Un renommage ou un remplacement de texte dans du code — même dans un libellé — peut casser la mise en forme, la longueur des lignes ou un test : il passe par les contrôles du code. Dans la documentation, il ne passe que par ceux de la documentation. Cas typique : un renommage dans l'ontologie, qui se propage dans tout le projet.
+- **La CI échoue vite** : les contrôles les moins chers d'abord (mise en forme, analyse, tests unitaires), les plus longs ensuite ; arrêt au premier échec.
+- **Un journal par exécution** : chaque exécution de la CI écrit son propre journal, horodaté, sans écraser le précédent ; sinon on ne peut plus dire après coup quand et pourquoi elle a échoué.
+
 ### Qui implémente quoi
 
 - **Fourni par la boîte à outils**, identique pour tous les projets : [`tools/toolbox-checks/`](../../tools/toolbox-checks/README.md) — vocabulaire, traçabilité, génération des lignes « Test », contrôles avant archivage, hook git. Le projet le copie et l'active ; il ne le réécrit pas.

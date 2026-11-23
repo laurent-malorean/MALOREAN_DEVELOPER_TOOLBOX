@@ -8,6 +8,7 @@ Boîte à outils pour développer mes projets : architecture, bonnes pratiques (
 |---|---|
 | `developer/driven-development/` | Flux de développement, méthodes par l'ontologie et par la spécification |
 | `developer/security/` | Sécurité (gestion des dépendances) |
+| `developer/ai-agent/` | Règles de travail de l'agent IA sur un projet |
 | `developer/archi/` | Architecture |
 | `design/ux-ui/` | Lois et principes UX/UI |
 | `tools/toolbox-checks/` | Contrôles communs prêts à copier dans un projet (vocabulaire, traçabilité, livraison), indépendants de la stack |
