@@ -29,7 +29,7 @@ Une information, un seul endroit : la règle dans l'ontologie, le comportement d
 | Situation | Ce qu'on fait |
 |---|---|
 | Nouvelle fonctionnalité, nouvelle règle métier, renommage d'un concept | Dossier de changement complet |
-| Bug qui révèle une exigence manquante | Dossier léger : proposition + exigence ajoutée à la spécification |
+| Bug qui révèle une exigence manquante | Dossier léger : proposition, exigence ajoutée à la spécification, tâches, revue du juge |
 | Bug sur un comportement déjà spécifié | Pas de dossier : un test qui cite le critère concerné, puis le correctif |
 | Remaniement sans changement de comportement, faute de frappe | Rien de plus que le cycle TDD habituel |
 
@@ -49,7 +49,7 @@ Avant tout code, lire l'ontologie et la spécification de référence. Identifie
 
 ### 2. Ouvrir le changement
 
-Créer `doc/changes/<nom-du-changement>/` (voir le format dans `spec-driven-development.md`) : proposition avec ses « Exigences touchées », tâches, puis selon la taille du changement plan technique, plan de test et plan d'interface.
+Créer `doc/changes/<nom-du-changement>/` à partir des modèles (`doc/changes/_templates/`) : la proposition avec ses « Exigences touchées ». Les autres fichiers (plan de test, plan technique, plan d'interface, tâches, revue) sont écrits par les agents, selon la taille du changement (voir `../ai-agent/agent-team.md`).
 
 ### 3. Mettre à jour les références
 
@@ -57,6 +57,7 @@ Directement dans les références, sur la branche du changement :
 
 1. **L'ontologie d'abord** : concept nouveau, renommé ou précisé ; règle ajoutée, modifiée ou retirée ; mots refusés.
 2. **Puis la spécification** : exigences et critères d'acceptation, avec les mots de l'ontologie.
+3. **Valider la préparation** (humain) : spécification, plans et plan de test relus avant tout code.
 
 ### 4. Développer en TDD, critère par critère
 
@@ -137,17 +138,18 @@ Code exclu de la mesure : uniquement le code généré et la configuration, list
 
 | Contrôle | Quand | Bloque | Défini dans |
 |---|---|---|---|
-| Mots refusés absents (sauf archives, fiches de décision, mentions « Autrefois … ») | Chaque commit | Oui | Méthode par l'ontologie |
+| Mots refusés absents (sauf archives, propositions, extraits générés, mentions « Autrefois … » de l'ontologie) | Chaque commit | Oui | Méthode par l'ontologie |
 | Mots refusés absents de l'interface (test) | Chaque commit | Oui | Méthode par l'ontologie |
 | Toute la suite de tests passe | Chaque commit | Oui | Ce fichier |
 | Couverture lignes et branches : seuils et sans recul | Chaque commit | Oui | Ce fichier |
 | Aucun test ne cite un identifiant inconnu | Chaque commit | Oui | Méthode par la spécification |
 | Chaque exigence a au moins un critère d'acceptation | Chaque commit | Oui | Méthode par la spécification |
-| Chaque critère et chaque règle testable a un test | Avant archivage | Oui | Ce fichier |
-| Aucun « À clarifier » restant, aucune hypothèse non validée | Avant archivage | Oui | Méthode par la spécification |
+| Chaque critère touché et chaque règle citée testable a un test | Avant archivage | Oui | Ce fichier |
+| Aucun « À clarifier » dans les exigences touchées ni le dossier, aucune hypothèse non validée dans leurs fiches | Avant archivage | Oui | Méthode par la spécification |
 | Toutes les tâches cochées, bilan rempli | Avant archivage | Oui | Méthode par la spécification |
-| Extrait de spécification de chaque PR à jour | Chaque commit | Oui | Méthode par la spécification |
+| Lignes « Test » et extrait de spécification de chaque PR à jour | Chaque commit | Oui | Méthode par la spécification |
 | Dernier verdict du juge « Accepté » | Avant archivage | Oui | `../ai-agent/agent-team.md` |
+| Chaque critère touché figure au bilan ; vérifications manuelles du plan de test cochées | Avant archivage | Oui | `../ai-agent/agent-team.md` |
 | Test de mutation : seuil et sans recul | CI / avant archivage | Oui | Ce fichier |
 | Cohérence métier (rapport par l'IA) | Avant archivage | Non, décision humaine | Ce fichier |
 | Relecture humaine | Avant intégration | Oui | Ce fichier |

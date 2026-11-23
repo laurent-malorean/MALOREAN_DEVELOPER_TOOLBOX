@@ -64,6 +64,14 @@ Quand l'utilisateur crée un Bidule, le système doit l'enregistrer.
 """
 
 
+PROPOSAL = """\
+# Changement — demo
+
+## Exigences touchées
+- `bidules.creer`
+"""
+
+
 class Project:
     """Projet temporaire construit fichier par fichier."""
 
@@ -125,7 +133,7 @@ class VocabularyTest(Base):
         self.assertEqual(tc.check_vocabulary(self.p.config()), [])
 
     def test_ongoing_change_is_checked(self):
-        self.p.write("doc/changes/x/proposal.md", "Zorglub reste.\n")
+        self.p.write("doc/changes/x/tasks.md", "Zorglub reste.\n")
         self.assertEqual(len(tc.check_vocabulary(self.p.config())), 1)
 
     def test_excluded_dirs_are_skipped(self):
@@ -187,7 +195,8 @@ class WriteTest(Base):
         self.p.write("tests/test_a.py", "x = 1\n# @spec bidules.creer.nominal\n")
         tc.write_test_lines(self.p.config())
         text = (self.p.root / "doc/specs/bidules.md").read_text(encoding="utf-8")
-        self.assertIn("- Test : ✅ tests/test_a.py:2", text)
+        self.assertIn("- Test : ✅ tests/test_a.py", text)
+        self.assertNotIn("tests/test_a.py:", text)
         self.assertIn("- Test : ❌ aucun", text)
         self.assertNotIn("ancien contenu", text)
         self.assertIn("2 critères, 1 testés, 1 sans test.", text)
@@ -205,7 +214,7 @@ class WriteTest(Base):
 
 class ReleaseTest(Base):
     def _change(self, tasks):
-        self.p.write("doc/changes/demo/proposal.md", "# Changement — demo\n")
+        self.p.write("doc/changes/demo/proposal.md", PROPOSAL)
         self.p.write("doc/changes/demo/tasks.md", tasks)
         self.p.write("doc/changes/demo/review.md", "## Passage 1\nVerdict : Accepté\n")
         self.p.write(
@@ -218,6 +227,7 @@ class ReleaseTest(Base):
         "# Tâches — demo\n\n## Tâches\n- [x] Fait\n\n## Bilan\n\n"
         "| Exigence / critère / règle | État | Prouvé par |\n|---|---|---|\n"
         "| bidules.creer.nominal | ✅ fait | tests/test_a.py |\n"
+        "| bidules.creer.erreur | ✅ fait | tests/test_a.py |\n"
     )
 
     def test_complete_change_passes(self):
@@ -235,7 +245,7 @@ class ReleaseTest(Base):
     def test_clarification_marker_blocks(self):
         change = self._change(self.DONE)
         spec = self.p.root / "doc/specs/bidules.md"
-        spec.write_text(spec.read_text(encoding="utf-8") + "\n⚠ À clarifier : quelle couleur ?\n", encoding="utf-8")
+        spec.write_text(spec.read_text(encoding="utf-8").replace("le système doit l'enregistrer.", "le système doit l'enregistrer.\n⚠ À clarifier : quelle couleur ?"), encoding="utf-8")
         self.assertTrue(any("clarifier" in e for e in tc.check_release(self.p.config(), change)))
 
     def test_hypothesis_blocks(self):
@@ -261,13 +271,6 @@ class ReleaseTest(Base):
         self.assertEqual(target.name, "2026-11-23-demo")
         self.assertTrue((target / "tasks.md").exists())
 
-
-PROPOSAL = """\
-# Changement — demo
-
-## Exigences touchées
-- `bidules.creer`
-"""
 
 SPEC_WITH_RULE = SPEC.replace(
     "### bidules.creer\n",
@@ -303,6 +306,11 @@ class ExtractTest(Base):
         self.p.write("doc/changes/demo/proposal.md", PROPOSAL + "- `bidules.creer.nominal`\n")
         _, errors = tc.build_extract(self.p.config(), self.change)
         self.assertTrue(any("exigence" in e for e in errors))
+
+    def test_only_list_items_are_read(self):
+        self.p.write("doc/changes/demo/proposal.md", PROPOSAL + "\n(Sert à générer `spec-extract.md`.)\n")
+        _, errors = tc.build_extract(self.p.config(), self.change)
+        self.assertEqual(errors, [])
 
     def test_missing_section_is_error(self):
         self.p.write("doc/changes/demo/proposal.md", "# Changement — demo\n")
@@ -347,7 +355,7 @@ class ExtractTest(Base):
 
 class ReviewVerdictTest(Base):
     def _change(self, review):
-        self.p.write("doc/changes/demo/proposal.md", "# P\n")
+        self.p.write("doc/changes/demo/proposal.md", PROPOSAL)
         self.p.write("doc/changes/demo/tasks.md", ReleaseTest.DONE)
         if review is not None:
             self.p.write("doc/changes/demo/review.md", review)
@@ -369,6 +377,65 @@ class ReviewVerdictTest(Base):
     def test_accepted_last_verdict_passes(self):
         review = "## Passage 1\nVerdict : À reprendre\n\n## Passage 2\nVerdict : Accepté\n"
         self.assertEqual(tc.check_release(self.p.config(), self._change(review)), [])
+
+
+class ScopedReleaseTest(Base):
+    def setUp(self):
+        super().setUp()
+        self.change = self.p.root / "doc/changes/demo"
+        self.p.write("doc/changes/demo/proposal.md", PROPOSAL)
+        self.p.write("doc/changes/demo/tasks.md", ReleaseTest.DONE)
+        self.p.write("doc/changes/demo/review.md", "Verdict : Accepté\n")
+        self.p.write("tests/test_a.py", "# @spec bidules.creer.nominal\n# @spec bidules.creer.erreur\n")
+
+    def errors(self):
+        return tc.check_release(self.p.config(), self.change)
+
+    def test_other_changes_do_not_block(self):
+        self.p.write("doc/specs/autre.md", "### autre.x\nX\n⚠ À clarifier : ?\n\n##### autre.x.cas\n- a\n\n## Hypothèses\n- Bleu.\n")
+        self.assertEqual(self.errors(), [])
+
+    def test_untested_rule_not_cited_does_not_block(self):
+        self.assertEqual(self.errors(), [])  # bidule.jamais-vide n'est pas citée par l'exigence
+
+    def test_cited_rule_without_test_blocks(self):
+        self.p.write("doc/specs/bidules.md", SPEC_WITH_RULE)
+        self.assertTrue(any("bidule.jamais-vide" in e for e in self.errors()))
+
+    def test_criterion_missing_from_bilan_blocks(self):
+        self.p.write("doc/changes/demo/tasks.md", ReleaseTest.DONE.replace("| bidules.creer.erreur | ✅ fait | tests/test_a.py |\n", ""))
+        self.assertTrue(any("bidules.creer.erreur" in e and "bilan" in e for e in self.errors()))
+
+    def test_unchecked_manual_check_blocks(self):
+        self.p.write("doc/changes/demo/test-plan.md", "## Vérifications manuelles\n- [ ] Ouvrir l'écran\n")
+        self.assertTrue(any("test-plan.md" in e for e in self.errors()))
+
+    def test_template_verdict_line_is_not_accepted(self):
+        self.p.write("doc/changes/demo/review.md", "Verdict : Accepté | À reprendre\n")
+        self.assertTrue(any("verdict" in e.lower() for e in self.errors()))
+
+
+class CommitSyncTest(Base):
+    def test_commit_regenerates_test_lines_and_fails(self):
+        import contextlib
+        import io
+
+        self.p.write("tests/test_a.py", "# @spec bidules.creer.nominal\n")
+        out = io.StringIO()
+        with contextlib.redirect_stdout(out):
+            code = tc.main(["--root", str(self.p.root), "commit"])
+        self.assertEqual(code, 1)
+        self.assertIn("bidules.md", out.getvalue())
+        with contextlib.redirect_stdout(io.StringIO()):
+            self.assertEqual(tc.main(["--root", str(self.p.root), "commit"]), 0)
+
+    def test_templates_folder_is_not_a_change(self):
+        self.p.write("doc/changes/_templates/proposal.md", "# Changement — <nom>\n")
+        self.assertEqual(tc.sync_extracts(self.p.config()), [])
+
+    def test_proposal_may_cite_refused_word(self):
+        self.p.write("doc/changes/demo/proposal.md", "Zorglub devient Bidule.\n")
+        self.assertEqual(tc.check_vocabulary(self.p.config()), [])
 
 
 class SelfExclusionTest(Base):
@@ -474,6 +541,7 @@ class CliTest(Base):
 
     def test_commit_command_runs_project_commands(self):
         self._complete_tests()
+        self.run_cli("traceability", "--write")
         self.p.write("toolbox-checks.json", '{"commit_commands": ["true"]}')
         self.assertEqual(self.run_cli("commit")[0], 0)
         self.p.write("toolbox-checks.json", '{"commit_commands": ["false"]}')
@@ -483,7 +551,7 @@ class CliTest(Base):
 
     def test_release_command_archives(self):
         self._complete_tests()
-        self.p.write("doc/changes/demo/proposal.md", "# P\n")
+        self.p.write("doc/changes/demo/proposal.md", PROPOSAL)
         self.p.write("doc/changes/demo/tasks.md", ReleaseTest.DONE)
         self.p.write("doc/changes/demo/review.md", "Verdict : Accepté\n")
         code, out = self.run_cli("release", "doc/changes/demo", "--archive")

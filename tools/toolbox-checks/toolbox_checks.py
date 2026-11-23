@@ -9,7 +9,8 @@ developer/driven-development/development-workflow.md :
                  critères et règles testables couverts par un test
                  (--strict : bloquant ; --write : génère les lignes « Test »)
   extract        génère l'extrait de spécification de chaque changement en cours
-  commit         vocabulary + traceability + extraits à jour, puis commandes du projet
+  commit         vocabulary + traceability + lignes « Test » et extraits à jour,
+                 puis commandes du projet
   release        contrôles avant archivage d'un changement (--archive : archive)
 
 Python 3.9+, bibliothèque standard uniquement.
@@ -44,7 +45,7 @@ CLARIFY = re.compile(r"À clarifier\s*:", re.IGNORECASE)
 TEST_LINE = re.compile(r"^\s*-\s*Test\s*:")
 UNCHECKED_TASK = re.compile(r"^\s*-\s*\[ \]")
 RULE_CITATION = re.compile(rf"ontologie\s*›\s*({ID})")
-VERDICT = re.compile(r"Verdict\s*:\s*(Accepté|À reprendre)", re.IGNORECASE)
+VERDICT = re.compile(r"^\s*Verdict\s*:\s*(Accepté|À reprendre)\s*$", re.IGNORECASE | re.MULTILINE)
 EXTRACT_NAME = "spec-extract.md"
 EXTRACT_HEADER = (
     "<!-- Généré par toolbox-checks à partir de doc/specs/ et doc/ontology/ — ne pas modifier.\n"
@@ -231,6 +232,8 @@ def check_vocabulary(cfg: Config) -> List[str]:
     for path, text in iter_text_files(cfg, [cfg.root]):
         if _is_under(path, cfg.archive_dir) or path.name == EXTRACT_NAME:
             continue
+        if path.name == "proposal.md" and _is_under(path, cfg.doc / "changes"):
+            continue  # une proposition explique un renommage : elle cite l'ancien mot
         in_ontology = _is_under(path, cfg.ontology_dir)
         in_refused_table = False
         for number, line in enumerate(text.split("\n"), start=1):
@@ -273,7 +276,7 @@ def parse_specs(cfg: Config) -> Specs:
             if m:
                 current = m.group(1)
                 register(current, where)
-                requirements[current] = {"where": where, "criteria": []}
+                requirements[current] = {"where": where, "file": path, "criteria": []}
                 continue
             m = CRITERION_HEADING.match(line)
             if m:
@@ -345,8 +348,8 @@ def check_traceability(cfg: Config, strict: bool = False) -> Tuple[List[str], Li
 
 
 def _test_line(identifier: str, tested: Dict[str, List[str]]) -> str:
-    places = tested.get(identifier)
-    return f"- Test : ✅ {', '.join(places)}" if places else "- Test : ❌ aucun"
+    files = sorted({place.rsplit(":", 1)[0] for place in tested.get(identifier, [])})
+    return f"- Test : ✅ {', '.join(files)}" if files else "- Test : ❌ aucun"
 
 
 def _rewrite_spec(text: str, tested: Dict[str, List[str]]) -> str:
@@ -447,6 +450,8 @@ def touched_ids(change: Path) -> Tuple[List[str], List[str]]:
         return [], [f"{change.name}/proposal.md : rubrique « ## Exigences touchées » manquante"]
     ids: List[str] = []
     for line in _section(text, "Exigences touchées"):
+        if not line.lstrip().startswith(("-", "*")):
+            continue  # seules les lignes de liste portent des identifiants
         for identifier in re.findall(rf"(?<![\w.-])({ID})(?![\w.-])", line):
             if identifier not in ids:
                 ids.append(identifier)
@@ -492,7 +497,10 @@ def ongoing_changes(cfg: Config) -> List[Path]:
     changes = cfg.doc / "changes"
     if not changes.is_dir():
         return []
-    return sorted(d for d in changes.iterdir() if d.is_dir() and d.name != "archive")
+    return sorted(
+        d for d in changes.iterdir()
+        if d.is_dir() and d.name != "archive" and not d.name.startswith("_")
+    )
 
 
 def sync_extracts(cfg: Config) -> List[str]:
@@ -513,12 +521,28 @@ def sync_extracts(cfg: Config) -> List[str]:
 # --------------------------------------------------------------------------- livraison
 
 def check_release(cfg: Config, change: Path) -> List[str]:
-    """Contrôles avant archivage d'un changement."""
+    """Contrôles avant archivage, limités aux exigences touchées par ce changement."""
     change = Path(change).resolve()
-    errors, _ = check_traceability(cfg, strict=True)
+    errors, _ = check_traceability(cfg)
+    ids, id_errors = touched_ids(change)
+    errors += id_errors
+    if not id_errors:
+        errors += build_extract(cfg, change)[1]
 
-    if not (change / "proposal.md").exists():
-        errors.append(f"{_rel(cfg, change)} : proposal.md manquant")
+    specs = parse_specs(cfg)
+    blocks = _requirement_blocks(cfg)
+    rules = ontology_rules(cfg)
+    tested = _tests_by_id(cfg)
+    touched = [i for i in ids if i in specs.requirements]
+    criteria = [c for i in touched for c in specs.requirements[i]["criteria"]]
+    cited = sorted({r for i in touched for l in blocks.get(i, []) for r in RULE_CITATION.findall(l)})
+
+    for c in criteria:
+        if c not in tested:
+            errors.append(f"{specs.criteria[c]['where']} : critère sans test « {c} »")
+    for r in cited:
+        if r in rules and rules[r]["testable"] and r not in tested:
+            errors.append(f"{_rel(cfg, rules[r]['file'])} : règle testable sans test « {r} »")
 
     tasks = change / "tasks.md"
     if not tasks.exists():
@@ -528,9 +552,14 @@ def check_release(cfg: Config, change: Path) -> List[str]:
         for number, line in _lines_outside_fences(text):
             if UNCHECKED_TASK.match(line):
                 errors.append(f"{_rel(cfg, tasks)}:{number} : tâche non cochée")
-        rows = [r for r in _table_rows(_section(text, "Bilan")) if r and r[0] and not r[0].startswith("<")]
+        bilan = _section(text, "Bilan")
+        rows = [r for r in _table_rows(bilan) if r and r[0] and not r[0].startswith("<")]
         if not rows:
             errors.append(f"{_rel(cfg, tasks)} : bilan vide")
+        bilan_text = "\n".join(bilan)
+        for c in criteria:
+            if not re.search(rf"(?<![\w.-]){re.escape(c)}(?![\w.-])", bilan_text):
+                errors.append(f"{_rel(cfg, tasks)} : critère « {c} » absent du bilan")
 
     review = change / "review.md"
     if not review.exists():
@@ -540,12 +569,24 @@ def check_release(cfg: Config, change: Path) -> List[str]:
         if not verdicts or verdicts[-1].lower() != "accepté":
             errors.append(f"{_rel(cfg, review)} : dernier verdict du juge non « Accepté »")
 
-    for path in _markdown_files(cfg.specs_dir) + _markdown_files(cfg.ontology_dir) + _markdown_files(change):
+    test_plan = change / "test-plan.md"
+    if test_plan.exists():
+        for number, line in _lines_outside_fences(test_plan.read_text(encoding="utf-8")):
+            if UNCHECKED_TASK.match(line):
+                errors.append(f"{_rel(cfg, test_plan)}:{number} : vérification manuelle non cochée")
+
+    for i in touched:
+        for line in blocks.get(i, []):
+            if CLARIFY.search(line):
+                errors.append(f"{specs.requirements[i]['where']} : point « À clarifier » non tranché dans « {i} »")
+    for path in _markdown_files(change):
+        if path.name == EXTRACT_NAME:
+            continue
         for number, line in _lines_outside_fences(path.read_text(encoding="utf-8")):
             if CLARIFY.search(line):
                 errors.append(f"{_rel(cfg, path)}:{number} : point « À clarifier » non tranché")
 
-    for path in _markdown_files(cfg.specs_dir):
+    for path in sorted({specs.requirements[i]["file"] for i in touched}):
         for line in _section(path.read_text(encoding="utf-8"), "Hypothèses"):
             item = re.sub(r"^\s*[-*]\s*", "", line).strip()
             if line.strip().startswith(("-", "*")) and item:
@@ -615,13 +656,14 @@ def main(argv: Optional[List[str]] = None) -> int:
         ok = _report("Vocabulaire", check_vocabulary(cfg))
         errors, warnings = check_traceability(cfg)
         ok = _report("Traçabilité", errors, warnings) and ok
-        messages = sync_extracts(cfg)
+        written = [f"régénéré : {_rel(cfg, p)}" for p in write_test_lines(cfg)]
+        messages = written + sync_extracts(cfg)
         extract_errors = [m[2:] for m in messages if m.startswith("✗")]
         extract_errors += [
             f"{m} — ajoutez-le au commit (git add) puis recommitez"
             for m in messages if not m.startswith("✗")
         ]
-        ok = _report("Extraits", extract_errors) and ok
+        ok = _report("Fichiers générés", extract_errors) and ok
         for command in cfg.commit_commands:
             print(f"[Projet] {command}")
             if subprocess.run(command, shell=True, cwd=cfg.root).returncode != 0:

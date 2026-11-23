@@ -1,6 +1,6 @@
 # MALOREAN_DEVELOPER_TOOLBOX
 
-Boîte à outils centrale pour développer mes projets. Ce repo ne contient pas d'application : c'est une base de connaissances (Markdown) que les autres projets consultent et réutilisent.
+Boîte à outils centrale pour **développer mes projets avec une équipe d'agents IA**. C'est son but : tout projet travaille avec l'équipe d'agents (`developer/ai-agent/agent-team.md`). Ce repo ne contient pas d'application : fiches, définitions d'agents, modèles et contrôles que les projets copient et appliquent.
 
 ## Rôle de ce repo
 
@@ -16,7 +16,8 @@ Ce repo définit les bonnes pratiques ; les projets de développement les appliq
 
 - Le `CLAUDE.md` du projet renvoie vers les fiches à appliquer (au minimum `developer/driven-development/development-workflow.md` et `developer/ai-agent/agent-practices.md`) et décrit comment il implémente la partie propre à sa stack.
 - Le projet copie `tools/toolbox-checks/` et active son hook (voir son README).
-- S'il travaille avec l'équipe d'agents, il copie `tools/agents/` dans `.claude/agents/` (voir `developer/ai-agent/agent-team.md`).
+- Il copie `tools/agents/` dans `.claude/agents/` et `tools/templates/change/` dans `doc/changes/_templates/`, et son `CLAUDE.md` donne aux agents les commandes de tests, de couverture et de mutation, les seuils et l'emplacement des lois UI et des constantes (voir `tools/agents/README.md`).
+- Exception assumée à « une information, un seul endroit » : les définitions d'agents sont autonomes (les projets n'ont pas accès à ce repo) et reprennent les règles dont l'agent a besoin.
 
 ## Contenu
 
@@ -38,7 +39,8 @@ developer/
 design/
   ux-ui/          Bonnes pratiques design (ex. law-of-ui.md)
 tools/
-  agents/         Définitions des agents de l'équipe (architecte, QA, designer, développeur, juge), à copier dans .claude/agents/
+  agents/         Définitions des agents de l'équipe (QA, architecte, designer, développeur, juge), à copier dans .claude/agents/
+  templates/      Modèles des fichiers d'une PR (change/), à copier dans doc/changes/_templates/
   toolbox-checks/ Contrôles communs indépendants de la stack (Python 3.9+, sans dépendance), avec leurs tests
 constants/        Constantes (palettes, tokens…) — à créer au besoin
 ```
@@ -50,7 +52,7 @@ Ajouter un nouveau thème dans le dossier qui correspond à sa catégorie ; cré
 - `doc/` : documentation du produit développé.
   - `doc/ontology/ontology.md` : ontologie (ce que sont les choses) ; fichiers par domaine à côté.
   - `doc/specs/<fonction>.md` : spécification de référence (ce que fait le système).
-  - `doc/changes/<nom>/` : changement en cours (proposition, tâches, bilan) ; `doc/changes/archive/` une fois livré.
+  - `doc/changes/<nom>/` : changement en cours, une PR (proposition, extrait généré, plans, plan de test, tâches, revue du juge) ; `doc/changes/_templates/` : modèles ; `doc/changes/archive/` une fois livré.
 - Les projets suivent un flux unique, en TDD, avec seuils de couverture et contrôles : `developer/driven-development/development-workflow.md`. Il s'appuie sur :
   - `developer/driven-development/ontology-driven-development.md` (contenu de l'ontologie, règles du vocabulaire) ;
   - `developer/driven-development/spec-driven-development.md` (format des spécifications, des changements et des identifiants).

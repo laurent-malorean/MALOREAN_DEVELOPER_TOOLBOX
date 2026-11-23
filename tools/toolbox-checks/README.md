@@ -8,13 +8,13 @@ Prérequis : Python 3.9 ou plus, aucune dépendance.
 
 | Commande | Contrôle | Bloque |
 |---|---|---|
-| `vocabulary` | Aucun mot refusé de l'ontologie dans le dépôt (y compris dans les noms : `ContactService`, `contact_id`). Exemptés : `doc/changes/archive/`, la table « Mots refusés », les lignes contenant « Autrefois ». | Oui |
+| `vocabulary` | Aucun mot refusé de l'ontologie dans le dépôt (y compris dans les noms : `ContactService`, `contact_id`). Exemptés : `doc/changes/archive/`, les `proposal.md` des changements (ils expliquent les renommages), les `spec-extract.md` générés, et dans l'ontologie la table « Mots refusés » et les lignes contenant « Autrefois ». | Oui |
 | `traceability` | Identifiants en double ; exigence sans critère ; test qui cite un identifiant inconnu ou une exigence au lieu d'un critère. Critères et règles testables sans test : avertissement. | Oui (sauf avertissements) |
 | `traceability --strict` | Idem, et tout critère ou règle testable sans test bloque. | Oui |
 | `traceability --write` | Régénère la ligne « Test » sous chaque critère et la section « Couverture » des fiches. | — |
 | `extract` | Génère `spec-extract.md` dans chaque changement en cours, à partir des « Exigences touchées » de sa proposition : exigences, critères, règles de l'ontologie citées. | Oui (identifiant inconnu, rubrique absente) |
-| `commit` | `vocabulary` + `traceability` + extraits à jour (un extrait régénéré bloque : l'ajouter au commit), puis les `commit_commands` du projet. | Oui |
-| `release <dossier>` | `traceability --strict` ; `proposal.md`, `tasks.md` et `review.md` présents ; dernier verdict du juge « Accepté » ; aucune tâche non cochée ; bilan rempli ; aucun « À clarifier : » dans ontologie, spécifications et changement ; aucune hypothèse restante dans les spécifications. | Oui |
+| `commit` | `vocabulary` + `traceability` ; régénère les lignes « Test » des spécifications et les extraits (un fichier régénéré bloque : l'ajouter au commit) ; puis les `commit_commands` du projet. | Oui |
+| `release <dossier>` | Limité aux exigences touchées du changement : chaque critère et chaque règle citée testable a un test ; chaque critère figure au bilan de `tasks.md` ; `proposal.md`, `tasks.md` et `review.md` présents ; dernier verdict du juge « Accepté » ; aucune tâche ni vérification manuelle de `test-plan.md` non cochée ; aucun « À clarifier : » dans les exigences touchées ni dans le dossier ; aucune hypothèse restante dans leurs fiches. Un autre changement en cours ne bloque pas. | Oui |
 | `release <dossier> --archive` | Idem, puis déplace le dossier vers `doc/changes/archive/AAAA-MM-JJ-<nom>/`. | Oui |
 
 Ce qui reste **au projet**, car dépendant de la stack : la commande de tests, la couverture (lignes, branches) et le test de mutation avec les seuils du flux commun. On les branche via `commit_commands` et la CI.
@@ -81,7 +81,7 @@ public function testCreatesDraftInvoice(): void { ... }
 
 - Ontologie (`doc/ontology/*.md`) : tables des sections `## Règles` (identifiant, règle, testable « Oui » / « Non… ») et `## Mots refusés` (mot refusé, mot retenu).
 - Spécifications (`doc/specs/*.md`) : exigences en `### <id>`, critères en `##### <id>`, section `## Couverture`, section `## Hypothèses`. Les blocs de code sont ignorés.
-- Changement (`doc/changes/<nom>/`) : `proposal.md` avec une rubrique `## Exigences touchées` (identifiants d'exigences), `tasks.md` avec cases `- [ ]` / `- [x]` et une section `## Bilan` en tableau, `review.md` avec des lignes `Verdict : Accepté` / `Verdict : À reprendre` (le dernier compte).
+- Changement (`doc/changes/<nom>/`, modèles dans `tools/templates/change/`) : `proposal.md` avec une rubrique `## Exigences touchées` (identifiants d'exigences), `tasks.md` avec cases `- [ ]` / `- [x]` et une section `## Bilan` en tableau, `review.md` avec des lignes `Verdict : Accepté` / `Verdict : À reprendre` seules sur leur ligne (la dernière compte), `test-plan.md` avec ses cases. Les dossiers dont le nom commence par `_` (comme `_templates`) ne sont pas des changements.
 
 Formats détaillés : [spec-driven-development.md](../../developer/driven-development/spec-driven-development.md) et [ontology-driven-development.md](../../developer/driven-development/ontology-driven-development.md).
 

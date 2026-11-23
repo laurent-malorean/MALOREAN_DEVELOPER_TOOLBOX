@@ -54,7 +54,7 @@ doc/
 
 Qui écrit quel fichier, et dans quel ordre : [`../ai-agent/agent-team.md`](../ai-agent/agent-team.md).
 
-- `spec-extract.md` contient les exigences listées dans « Exigences touchées » de la proposition, avec leurs critères et les règles de l'ontologie qu'elles citent. Il est **généré** (`toolbox_checks.py extract`, vérifié à chaque commit) : on ne l'écrit jamais à la main, on modifie la spécification de référence.
+- `spec-extract.md` contient les exigences listées dans « Exigences touchées » de la proposition, avec leurs critères et les règles de l'ontologie qu'elles citent. Il est **généré** (`toolbox_checks.py extract`) à chaque commit et entre deux agents : on ne l'écrit jamais à la main, on modifie la spécification de référence.
 
 - La spécification de référence décrit **toujours l'état actuel** du produit. Pendant un changement, on la modifie directement sur la branche : git garde le diff et signale les conflits entre changements parallèles.
 - Une fiche de spécification peut citer des concepts de plusieurs domaines de l'ontologie ; les deux découpages n'ont pas à correspondre.
@@ -109,7 +109,7 @@ Chaque exigence a **au moins un** critère d'acceptation, écrit en scénario :
 
 - Couvrir le cas nominal, les cas limites et les erreurs.
 - Un critère = un test (au moins).
-- La ligne « Test » est **générée** à partir des annotations des tests (`toolbox_checks.py traceability --write`) ; elle n'est jamais écrite à la main : `✅ <fichier>:<ligne>` ou `❌ aucun`. La section « Couverture » est générée de la même façon.
+- La ligne « Test » est **générée** à partir des annotations des tests, à chaque commit (ou par `toolbox_checks.py traceability --write`) ; elle n'est jamais écrite à la main : `✅ <fichier de test>` ou `❌ aucun`. La section « Couverture » est générée de la même façon. Ces lignes générées sont la seule partie de la spécification que le développeur peut faire changer.
 
 ## Les marqueurs et sections de contrôle
 
@@ -183,13 +183,13 @@ l'enregistrer à l'état « brouillon ».
 - Étant donné un Client existant
 - Quand l'utilisateur crée une facture pour ce Client
 - Alors la facture existe à l'état « brouillon », sans ligne
-- Test : ✅ tests/invoice_test.py:12
+- Test : ✅ tests/invoice_test.py
 
 ##### facturation.creer-facture.client-inconnu
 - Étant donné un Client qui n'existe pas
 - Quand l'utilisateur crée une facture pour ce Client
 - Alors le système refuse et affiche « Client introuvable »
-- Test : ✅ tests/invoice_test.py:20
+- Test : ✅ tests/invoice_test.py
 
 ### facturation.refuser-modification-validee
 Règle appliquée : ontologie › facture.validee-non-modifiable
@@ -204,7 +204,7 @@ doit refuser et proposer de créer un Avoir.
 - Quand l'utilisateur modifie une ligne
 - Alors la modification est refusée
 - Et le système affiche « Facture validée : créez un avoir »
-- Test : ✅ tests/invoice_test.py:31
+- Test : ✅ tests/invoice_test.py
 
 ##### facturation.refuser-modification-validee.client
 - Étant donné une facture validée
@@ -223,7 +223,7 @@ un numéro unique.
 - Étant donné une facture « brouillon » avec au moins une ligne
 - Quand l'utilisateur la valide
 - Alors elle reçoit un numéro unique
-- Test : ✅ tests/invoice_test.py:45
+- Test : ✅ tests/invoice_test.py
 
 ## Critères de succès
 - Une facture de 500 lignes se valide en moins de 2 secondes.
@@ -238,133 +238,13 @@ un numéro unique.
 - Le paiement.
 ````
 
-## Modèle : `doc/changes/<nom>/proposal.md`
+## Modèles des fichiers de changement
 
-C'est l'**unique registre du pourquoi** : décisions métier, concepts retirés ou fusionnés, choix d'une bibliothèque.
+Les modèles sont dans [`tools/templates/change/`](../../tools/templates/change/) — seul endroit où ils sont écrits. Chaque projet les copie dans `doc/changes/_templates/` ; les agents y renvoient. Le dossier `_templates` n'est pas un changement : les contrôles l'ignorent.
 
-````markdown
-# Changement — <nom>
-
-## Demande
-<La demande telle que formulée.>
-
-## Exigences touchées
-- `<fonction>.<nom-court>`
-
-(Identifiants d'exigences, jamais de critères. Sert à générer `spec-extract.md`.)
-
-## Confrontation
-- Concepts et règles touchés : <identifiants>
-- Contradictions : <aucune | liste>
-- Classement : évolution voulue | erreur corrigée dans la demande | ambiguïté (voir « À clarifier »)
-
-## Décision
-<Ce qu'on décide et pourquoi. Alternatives écartées.>
-
-## Impacts
-- Ontologie : <concepts, règles, mots refusés ajoutés / modifiés / retirés>
-- Spécification : <exigences ajoutées / modifiées / retirées>
-- Autres endroits qui supposaient l'ancienne règle : <liste>
-- Dépendances ajoutées : <bibliothèque, version, raison, résultat de la vérification>
-
-## Hors périmètre
-- 
-````
-
-## Modèle : `doc/changes/<nom>/tasks.md`
-
-````markdown
-# Tâches — <nom>
-
-## Tâches
-- [ ] Ontologie mise à jour
-- [ ] Spécification mise à jour
-- [ ] <critère> : rouge → vert → nettoyage
-- [ ] …
-- [ ] Suite complète, couverture, mutation au-dessus des seuils
-
-## Bilan
-
-| Exigence / critère / règle | État | Prouvé par |
-|---|---|---|
-| <identifiant> | ✅ fait / ❌ non fait / ⚠ bloqué | <test> ou <raison> |
-
-## Rapport de cohérence
-- Écarts trouvés : <liste, chacun classé évolution voulue / dérive / doute>
-- Décisions à valider : <liste>
-````
-
-## Modèle : `doc/changes/<nom>/technical-plan.md`
-
-````markdown
-# Plan technique — <nom>
-
-## Couches et modules touchés
-- 
-
-## Découpage
-<Étapes de développement, dans l'ordre, chacune rattachée aux critères qu'elle fait passer.>
-
-## Données
-<Modèles, migrations, volumes. « Aucune » si rien.>
-
-## Risques
-- 
-
-## Contrôle de cohérence avec le plan d'interface
-<Rempli par l'architecte lors de sa passe légère : compatible, ou points à reprendre.>
-````
-
-## Modèle : `doc/changes/<nom>/ui-plan.md`
-
-````markdown
-# Plan d'interface — <nom>
-
-## Écrans et composants touchés
-- 
-
-## Pour chaque composant
-- Contenu attendu : <une ligne, un paragraphe, une liste… et sa longueur typique>
-- Taille et place : <dimensionnée pour le contenu attendu, pas pour le minimum>
-- États : vide, rempli, erreur, chargement, désactivé
-- Clavier et accessibilité : <ordre de tabulation, raccourcis, libellés>
-
-## Règles appliquées
-<Lois UI et constantes utilisées, par leur nom.>
-````
-
-## Modèle : `doc/changes/<nom>/test-plan.md`
-
-Les cas de test sont les critères d'acceptation, dans la spécification ; ils n'apparaissent pas ici.
-
-````markdown
-# Plan de test — <nom>
-
-## Critères ajoutés à la spécification
-<Identifiants des cas limites et erreurs que le QA a ajoutés.>
-
-## Jeux de données
-- 
-
-## Vérifications manuelles
-<Ce que les tests automatiques ne couvrent pas : parcours réel, rendu, ressenti.>
-- [ ] 
-````
-
-## Modèle : `doc/changes/<nom>/review.md`
-
-Un passage par évaluation du juge ; le **dernier** verdict doit être « Accepté » pour archiver.
-
-````markdown
-# Revue — <nom>
-
-## Passage 1
-Verdict : À reprendre
-
-### Points
-- [bloquant] <fichier:ligne> — <problème> — <attendu>
-- [mineur] …
-
-## Passage 2
-Verdict : Accepté
-````
+- `proposal.md` : **unique registre du pourquoi** (décisions métier, concepts retirés ou fusionnés, choix d'une bibliothèque) et liste des « Exigences touchées ».
+- `tasks.md` : tâches, bilan exigence par exigence, rapport de cohérence.
+- `technical-plan.md` : plan technique de l'architecte.
+- `ui-plan.md` : plan d'interface du designer.
+- `test-plan.md` : jeux de données et vérifications manuelles du QA. Les cas de test sont les critères d'acceptation, dans la spécification ; ils n'apparaissent pas ici.
+- `review.md` : verdicts du juge ; le **dernier** doit être « Accepté » pour archiver.

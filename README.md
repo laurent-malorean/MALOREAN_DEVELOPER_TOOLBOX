@@ -1,6 +1,6 @@
 # MALOREAN_DEVELOPER_TOOLBOX
 
-Boîte à outils pour développer mes projets : architecture, bonnes pratiques (dev et design) et constantes réutilisables. Pas d'application ici, uniquement des fiches Markdown que les projets consultent et appliquent.
+Boîte à outils pour **développer avec une équipe d'agents IA** (QA, architecte, designer, développeur, juge), encadrée par une ontologie, des spécifications et des contrôles automatiques. Pas d'application ici : des fiches Markdown, des définitions d'agents, des modèles et des contrôles que les projets copient et appliquent.
 
 ## Contenu
 
@@ -12,6 +12,7 @@ Boîte à outils pour développer mes projets : architecture, bonnes pratiques (
 | `developer/archi/` | Architecture |
 | `design/ux-ui/` | Lois et principes UX/UI |
 | `tools/agents/` | Définitions des agents de l'équipe, prêtes à copier dans `.claude/agents/` |
+| `tools/templates/change/` | Modèles des fichiers d'une PR, prêts à copier dans `doc/changes/_templates/` |
 | `tools/toolbox-checks/` | Contrôles communs prêts à copier dans un projet (vocabulaire, traçabilité, livraison), indépendants de la stack |
 
 ## Spécifications
@@ -24,7 +25,7 @@ Chaque projet décrit ce que le système doit faire dans une **spécification** 
 doc/
   ontology/ontology.md                ce que SONT les choses (concepts, mots, règles)
   specs/<fonction>.md                 ce que FAIT le système, une fiche par grande fonction
-  changes/<nom>/                      changement en cours : proposition, tâches, bilan
+  changes/<nom>/                      changement en cours (une PR) : proposition, extrait généré, plans, tâches, revue du juge
   changes/archive/AAAA-MM-JJ-<nom>/   changements livrés
 ```
 
@@ -56,11 +57,11 @@ doit refuser et proposer de créer un Avoir.
 - Quand l'utilisateur modifie une ligne
 - Alors la modification est refusée
 - Et le système affiche « Facture validée : créez un avoir »
-- Test : ✅ tests/invoice_test.py:31
+- Test : ✅ tests/invoice_test.py
 ```
 
 ### Comment elles servent au développement
 
-Les critères d'acceptation sont la liste des tests à écrire en TDD, avant le code. Un changement n'est livré que si chaque critère a son test, que rien ne reste « à clarifier » et que la couverture atteint les seuils (90 % lignes et branches sur le code métier, 80 % de mutants détectés). Ordre de travail et contrôles : [development-workflow.md](developer/driven-development/development-workflow.md). Les contrôles sont fournis, prêts à copier : [tools/toolbox-checks](tools/toolbox-checks/README.md).
+Les critères d'acceptation sont la liste des tests à écrire en TDD, avant le code. Un changement n'est livré que si chaque critère a son test, que rien ne reste « à clarifier », que la couverture atteint les seuils du flux de développement et que le juge a rendu le verdict « Accepté ». Ordre de travail et contrôles : [development-workflow.md](developer/driven-development/development-workflow.md). Les contrôles sont fournis, prêts à copier : [tools/toolbox-checks](tools/toolbox-checks/README.md).
 
 Inspirations : OpenSpec, Spec Kit, Kiro (notation EARS), et la critique de Birgitta Böckeler sur martinfowler.com.
