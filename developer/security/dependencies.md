@@ -56,7 +56,7 @@ Une bibliothèque en amène souvent des dizaines d'autres (dépendances indirect
 
 ### 6. Noter le choix
 
-Pour chaque bibliothèque ajoutée, consigner dans les décisions du projet : la bibliothèque, sa version, pourquoi elle (et pas une autre, ou pas du code maison), et le résultat de la vérification.
+Pour chaque bibliothèque ajoutée, consigner dans la proposition du changement qui l'ajoute (`doc/changes/<nom>/proposal.md`, rubrique « Dépendances ajoutées ») : la bibliothèque, sa version, pourquoi elle (et pas une autre, ou pas du code maison), et le résultat de la vérification. Voir `../driven-development/development-workflow.md`.
 
 ## En continu
 

@@ -3,7 +3,10 @@ type: bonne_pratique
 sujet: developpement_guide_par_l_ontologie
 sources:
   - https://malorean.net/articles/2026-10-29-ontology-driven-design-et-si-lontologie-devenait-le-filet-de-securite-du-code-genere-par-lia.html
-date: 2026-11-20
+date: 2026-11-23
+voir_aussi:
+  - development-workflow.md
+  - spec-driven-development.md
 ---
 
 # Développement guidé par l'ontologie
@@ -16,11 +19,7 @@ L'ontologie passe **avant** le code. Le code reprend les mots de l'ontologie ; s
 
 L'ontologie décrit le métier, pas l'architecture technique : une classe n'est pas forcément un concept métier.
 
-Trois références, trois rôles :
-
-- **Le code** est la vérité du comportement réellement implémenté.
-- **L'ontologie** est la référence du sens métier.
-- **L'intention** (la demande) explique pourquoi ce sens peut changer.
+L'ontologie est l'une des quatre références d'un projet (ontologie, spécification, code, proposition) ; leur rôle respectif, l'ordre de travail, le traitement des écarts et les contrôles sont décrits dans `development-workflow.md`. Ce fichier décrit ce qui est propre à l'ontologie : son contenu et les règles du vocabulaire.
 
 ## Où vit l'ontologie
 
@@ -36,23 +35,33 @@ Une ligne par concept, et une seule :
 
 | Mot | Code | Définition |
 |---|---|---|
-| Espace de travail | `Workspace` | Un nom et un dossier racine choisi par l'utilisateur, qui contient toutes ses notes. Un seul est ouvert à la fois. Autrefois « bibliothèque ». |
+| Espace de travail | `Workspace` | Un nom et un dossier racine choisi par l'utilisateur, qui contient toutes ses notes. N'est pas un dossier quelconque du disque. Autrefois « bibliothèque ». Règles : `espace-de-travail.un-seul-ouvert`. |
 
 - **Mot** : le terme métier, celui que voit l'utilisateur et qu'on emploie dans les documents.
 - **Code** : le nom exact du type, de la classe, de la fonction, du module d'interface ou de la classe CSS qui porte la notion.
-- **Définition** : ce que la notion veut dire, ses règles essentielles et ses limites — ce qu'elle est, ce qu'elle n'est pas, ce qui est interdit (ex. « une personne est rattachée à une entreprise à la fois »).
+- **Définition** : ce que la notion **est** et ce qu'elle **n'est pas**. Les règles ne s'écrivent pas ici : la définition renvoie à leurs identifiants dans la section « Règles ».
 
 ### 2. Les relations
 
 Comment les concepts se lient : « une commande est associée à un client », « un avoir référence la facture qu'il corrige ».
 
-### 3. Les règles et invariants
+### 3. Les règles
 
-Ce qui doit toujours être vrai : « une facture validée ne peut plus être modifiée », « une facture a au moins une ligne », « une action concerne une seule personne ». Chaque invariant qui le peut devient un test exécutable.
+Ce qui doit toujours être vrai, quel que soit l'écran ou le parcours. Chaque règle a un identifiant `<concept>.<nom-court>` (format détaillé dans `spec-driven-development.md`) :
+
+| Identifiant | Règle | Testable |
+|---|---|---|
+| `facture.validee-non-modifiable` | Une facture validée ne peut plus être modifiée. | Oui |
+| `facture.au-moins-une-ligne` | Une facture a au moins une ligne. | Oui |
+| `action.une-seule-personne` | Une action concerne une seule personne. | Oui |
+
+- Une règle testable a au moins un test qui cite son identifiant.
+- Une règle non testable est marquée « Non » avec la raison ; elle relève de la relecture.
+- La spécification cite ces règles ; elle ne les reformule jamais.
 
 ### 4. Les états et transitions
 
-La vie d'un concept : « une commande peut être validée, annulée ou facturée » ; « une commande annulée ne peut pas être expédiée ».
+La vie d'un concept : « une commande peut être validée, annulée ou facturée » ; « une commande annulée ne peut pas être expédiée ». Une transition interdite est une règle : elle a son identifiant dans la section « Règles ».
 
 ### 5. Les mots à ne pas confondre
 
@@ -75,9 +84,17 @@ Cette liste alimente le contrôle automatique du vocabulaire.
 
 Pour chaque concept, les éléments qui le réalisent : classes, fonctions, événements, opérations d'API, outils MCP. Ces liens ne définissent pas le concept. Chaque lien garde sa preuve (fichier, symbole) ; une relation supposée n'est pas une correspondance démontrée.
 
-### 8. Les décisions
+(Le lien entre une règle et ses tests passe, lui, par l'identifiant de la règle cité dans les tests.)
 
-Pour chaque concept retiré, fusionné, renommé ou règle supprimée : la décision et sa raison (ex. pourquoi le type de page Kanban a disparu au profit du CRM). Les fiches de décision sont datées et gardent les mots de leur époque : on ne les réécrit pas quand un mot change.
+### 8. L'index des décisions
+
+Un index daté qui pointe vers les propositions archivées (`doc/changes/archive/`). La raison d'une décision s'écrit **uniquement** dans la proposition du changement ; l'index ne la recopie pas.
+
+| Date | Décision | Changement |
+|---|---|---|
+| 2026-10-12 | Le type de page Kanban disparaît au profit du CRM | `archive/2026-10-12-kanban-vers-crm` |
+
+Les propositions archivées gardent les mots de leur époque : on ne les réécrit pas quand un mot change.
 
 ## Les règles du vocabulaire
 
@@ -94,48 +111,24 @@ Les deux mécanismes se complètent ; un mot remplacé apparaît aux deux endroi
 - **Dans la liste des mots refusés**, avec le mot retenu : c'est ce qui sert au contrôle et à la correction.
 - **Dans la définition du mot retenu**, sous la forme « Autrefois … » : c'est ce qui garde l'historique pour le lecteur.
 
-L'ancien mot ne s'emploie plus nulle part ailleurs. Renommer, c'est tout renommer d'un coup : ontologie d'abord, puis code, tests, spécifications, écrans et documentation MCP, dans le même commit.
-
-## L'ordre de travail
-
-Toute évolution suit cet ordre, sans sauter d'étape :
-
-1. **Confronter la demande à l'ontologie** (obligatoire, avant tout code). Identifier les concepts, règles et états touchés ; relever les contradictions. Seulement les concepts utiles, pas toute l'ontologie.
-   - Évolution voulue du métier → on met l'ontologie à jour (étape 2), puis on cherche les autres endroits qui supposent encore l'ancienne règle.
-   - Erreur de conception → on corrige la demande, pas l'ontologie.
-   - Demande ambiguë → on pose la question ; on n'invente pas de règle.
-2. **Ontologie.** Si l'évolution crée, renomme ou précise un concept : définition, règles, nom dans le code, mots refusés, décision.
-3. **Test.** Écrire le test qui décrit le comportement attendu, nommé par ce qu'il garantit, avec les mots de l'ontologie.
-4. **Échec.** Le lancer et le voir échouer, pour la bonne raison.
-5. **Code.** Le code minimal qui fait passer le test, avec les noms de la colonne « Code ».
-6. **Vérification.** Relancer le test, puis toute la suite ; contrôler la cohérence avec l'ontologie.
-7. **Commit.** Ontologie, spécification, test, code et documentation ensemble.
-
-## Quand le code et l'ontologie divergent
-
-Un écart n'est pas toujours un bug : il peut signaler une transformation voulue du métier. On le classe :
-
-- **Évolution voulue** (la demande l'explique) → l'ontologie évolue, avec une décision.
-- **Dérive** (rien dans la demande ne l'explique : concept qui change de sens, vocabulaire qui diverge, notion abandonnée réintroduite) → on corrige le code.
-- **Doute** → décision humaine.
-
-Le code n'a pas automatiquement raison. On ne modifie jamais l'ontologie pour rendre acceptable une erreur du code.
+L'ancien mot ne s'emploie plus nulle part ailleurs. Renommer, c'est tout renommer d'un coup : ontologie d'abord, puis code, tests, identifiants, spécifications, écrans et documentation MCP, **dans le même commit**.
 
 ## Les réflexes
 
 - Avant de nommer quoi que ce soit, chercher dans l'ontologie.
-- Avant de toucher un concept, relire sa définition : elle contient souvent la règle qui contraint le changement (« une action concerne une seule personne » → l'entreprise de l'action en découle).
+- Avant de toucher un concept, relire sa définition et ses règles : elles contraignent souvent le changement (« une action concerne une seule personne » → l'entreprise de l'action en découle).
 - Un mot pour deux choses, ou deux mots pour une chose : c'est un défaut. Le noter dans « mots à ne pas confondre », puis le résoudre en renommant.
 - Synonyme ou ancien mot repéré : le remplacer par le mot de l'ontologie.
 - Une question métier se raisonne avec l'ontologie, pas avec le code ; le code sert à vérifier.
 - Le commentaire d'un élément public dit ce qu'on obtient, dans les mots de l'ontologie. S'il est difficile à écrire, la notion est mal définie : revenir à l'ontologie.
 - Extraire une fonction quand la partie extraite a un nom de l'ontologie et un sens seule, pas pour réduire la taille.
 
-## Les contrôles
+## Les contrôles propres à l'ontologie
 
-- **Vocabulaire** (déterministe) : une étape de la CI locale, avant chaque commit, cherche les mots refusés dans tout le dépôt et refuse le commit s'il en reste — sauf dans les fiches de décision et les mentions « Autrefois … ». Un test vérifie aussi qu'aucun mot refusé n'apparaît dans l'interface.
-- **Invariants** (déterministe) : les règles de l'ontologie deviennent des tests ; on suit la part des invariants couverts.
-- **Cohérence métier** (sémantique, par l'IA) : avant fusion, confronter les changements à l'ontologie et produire un rapport — concepts nouveaux ou modifiés, règles impactées, incohérences, modifications d'ontologie proposées, décisions à valider.
+(La liste complète des contrôles est dans `development-workflow.md`.)
+
+- **Vocabulaire** : une étape de la CI locale, avant chaque commit, cherche les mots refusés dans tout le dépôt et refuse le commit s'il en reste — sauf dans les propositions archivées (`doc/changes/archive/`) et les mentions « Autrefois … » de l'ontologie.
+- **Interface** : un test vérifie qu'aucun mot refusé n'apparaît à l'écran.
 - **Relecture** : ce que l'outil ne peut pas trancher (un mot juste dans un autre sens, comme « page web »).
 
 L'ontologie ne remplace ni les tests unitaires ni les tests d'intégration ; l'analyse par IA n'a pas la garantie d'une assertion déterministe.
@@ -153,7 +146,7 @@ L'ontologie ne remplace ni les tests unitaires ni les tests d'intégration ; l'a
 
 Un audit a trouvé des notions à deux noms : le type de contenu des notes s'appelait « page » dans le code et « note » partout ailleurs ; l'interface était tantôt « l'interface », tantôt « la page » ; la liste des notes s'appelait `sidebar` dans le CSS ; « bibliothèque » traînait encore après avoir été remplacée par « espace de travail ».
 
-Correction : un seul mot par notion, ontologie mise à jour (avec « Autrefois … »), renommage dans le code, les tests, les écrans et les documents, une fiche de décision, et les anciens mots ajoutés aux mots refusés pour qu'ils ne reviennent pas.
+Correction : un seul mot par notion, ontologie mise à jour (avec « Autrefois … »), renommage dans le code, les tests, les écrans et les documents, une proposition de changement qui explique le choix, et les anciens mots ajoutés aux mots refusés pour qu'ils ne reviennent pas.
 
 ## Modèle de `doc/ontology/ontology.md`
 
@@ -166,15 +159,17 @@ Correction : un seul mot par notion, ontologie mise à jour (avec « Autrefois �
 
 | Mot | Code | Définition |
 |---|---|---|
-|  |  |  |
+|  |  | <Ce que c'est, ce que ce n'est pas. Autrefois … Règles : <identifiants>.> |
 
 ## Relations
 
 - 
 
-## Règles et invariants
+## Règles
 
-- 
+| Identifiant | Règle | Testable |
+|---|---|---|
+|  |  | Oui / Non (raison) |
 
 ## États et transitions
 
@@ -200,9 +195,9 @@ Correction : un seul mot par notion, ontologie mise à jour (avec « Autrefois �
 |---|---|---|
 |  |  |  |
 
-## Décisions
+## Index des décisions
 
-| Date | Décision | Raison |
+| Date | Décision | Changement |
 |---|---|---|
 |  |  |  |
 ```

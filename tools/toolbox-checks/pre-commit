@@ -1,0 +1,6 @@
+#!/bin/sh
+# Hook git : contrôles communs avant chaque commit.
+# Installation dans un projet : git config core.hooksPath tools/toolbox-checks
+DIR=$(cd "$(dirname "$0")" && pwd)
+ROOT=$(git rev-parse --show-toplevel)
+exec python3 "$DIR/toolbox_checks.py" --root "$ROOT" commit
