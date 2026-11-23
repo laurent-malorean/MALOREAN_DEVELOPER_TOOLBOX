@@ -12,8 +12,9 @@ Prérequis : Python 3.9 ou plus, aucune dépendance.
 | `traceability` | Identifiants en double ; exigence sans critère ; test qui cite un identifiant inconnu ou une exigence au lieu d'un critère. Critères et règles testables sans test : avertissement. | Oui (sauf avertissements) |
 | `traceability --strict` | Idem, et tout critère ou règle testable sans test bloque. | Oui |
 | `traceability --write` | Régénère la ligne « Test » sous chaque critère et la section « Couverture » des fiches. | — |
-| `commit` | `vocabulary` + `traceability`, puis les `commit_commands` du projet. | Oui |
-| `release <dossier>` | `traceability --strict` ; `proposal.md` et `tasks.md` présents ; aucune tâche non cochée ; bilan rempli ; aucun « À clarifier : » dans ontologie, spécifications et changement ; aucune hypothèse restante dans les spécifications. | Oui |
+| `extract` | Génère `spec-extract.md` dans chaque changement en cours, à partir des « Exigences touchées » de sa proposition : exigences, critères, règles de l'ontologie citées. | Oui (identifiant inconnu, rubrique absente) |
+| `commit` | `vocabulary` + `traceability` + extraits à jour (un extrait régénéré bloque : l'ajouter au commit), puis les `commit_commands` du projet. | Oui |
+| `release <dossier>` | `traceability --strict` ; `proposal.md`, `tasks.md` et `review.md` présents ; dernier verdict du juge « Accepté » ; aucune tâche non cochée ; bilan rempli ; aucun « À clarifier : » dans ontologie, spécifications et changement ; aucune hypothèse restante dans les spécifications. | Oui |
 | `release <dossier> --archive` | Idem, puis déplace le dossier vers `doc/changes/archive/AAAA-MM-JJ-<nom>/`. | Oui |
 
 Ce qui reste **au projet**, car dépendant de la stack : la commande de tests, la couverture (lignes, branches) et le test de mutation avec les seuils du flux commun. On les branche via `commit_commands` et la CI.
@@ -80,7 +81,7 @@ public function testCreatesDraftInvoice(): void { ... }
 
 - Ontologie (`doc/ontology/*.md`) : tables des sections `## Règles` (identifiant, règle, testable « Oui » / « Non… ») et `## Mots refusés` (mot refusé, mot retenu).
 - Spécifications (`doc/specs/*.md`) : exigences en `### <id>`, critères en `##### <id>`, section `## Couverture`, section `## Hypothèses`. Les blocs de code sont ignorés.
-- Changement (`doc/changes/<nom>/`) : `proposal.md`, `tasks.md` avec cases `- [ ]` / `- [x]` et une section `## Bilan` en tableau.
+- Changement (`doc/changes/<nom>/`) : `proposal.md` avec une rubrique `## Exigences touchées` (identifiants d'exigences), `tasks.md` avec cases `- [ ]` / `- [x]` et une section `## Bilan` en tableau, `review.md` avec des lignes `Verdict : Accepté` / `Verdict : À reprendre` (le dernier compte).
 
 Formats détaillés : [spec-driven-development.md](../../developer/driven-development/spec-driven-development.md) et [ontology-driven-development.md](../../developer/driven-development/ontology-driven-development.md).
 

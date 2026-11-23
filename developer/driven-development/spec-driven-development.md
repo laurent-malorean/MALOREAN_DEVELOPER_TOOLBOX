@@ -41,12 +41,20 @@ Inspirations : OpenSpec (spécification de référence vivante, dossier de chang
 doc/
   ontology/ontology.md                  ontologie (voir la méthode par l'ontologie)
   specs/<fonction>.md                   spécification de référence, une fiche par grande fonction
-  changes/<nom-du-changement>/          changement en cours
-    proposal.md                         pourquoi, décision
+  changes/<nom-du-changement>/          changement en cours = une PR
+    proposal.md                         pourquoi, décision, exigences touchées
+    spec-extract.md                     extrait généré de la spécification (lecture seule)
+    technical-plan.md                   plan technique (architecte)
+    ui-plan.md                          plan d'interface (designer), si le changement touche l'interface
+    test-plan.md                        jeux de données et vérifications manuelles (QA)
+    review.md                           verdicts du juge, un par passage
     tasks.md                            tâches puis bilan
-    design.md                           conception, seulement si utile
   changes/archive/AAAA-MM-JJ-<nom>/     changements livrés
 ```
+
+Qui écrit quel fichier, et dans quel ordre : [`../ai-agent/agent-team.md`](../ai-agent/agent-team.md).
+
+- `spec-extract.md` contient les exigences listées dans « Exigences touchées » de la proposition, avec leurs critères et les règles de l'ontologie qu'elles citent. Il est **généré** (`toolbox_checks.py extract`, vérifié à chaque commit) : on ne l'écrit jamais à la main, on modifie la spécification de référence.
 
 - La spécification de référence décrit **toujours l'état actuel** du produit. Pendant un changement, on la modifie directement sur la branche : git garde le diff et signale les conflits entre changements parallèles.
 - Une fiche de spécification peut citer des concepts de plusieurs domaines de l'ontologie ; les deux découpages n'ont pas à correspondre.
@@ -82,7 +90,7 @@ Une exigence = **une seule obligation**. Formes autorisées (notation EARS, en f
 
 - Une exigence qu'on n'arrive pas à écrire sous une de ces formes est floue : on la reprend.
 - Pas de « et » qui cache deux obligations : on découpe.
-- Pas de solution technique dans l'exigence (ni table, ni classe, ni bibliothèque) : elle va dans `design.md`.
+- Pas de solution technique dans l'exigence (ni table, ni classe, ni bibliothèque) : elle va dans `technical-plan.md`.
 
 Une bonne exigence est : **testable, sans solution imposée, non ambiguë, cohérente avec les autres, complète**.
 
@@ -240,9 +248,13 @@ C'est l'**unique registre du pourquoi** : décisions métier, concepts retirés 
 ## Demande
 <La demande telle que formulée.>
 
+## Exigences touchées
+- `<fonction>.<nom-court>`
+
+(Identifiants d'exigences, jamais de critères. Sert à générer `spec-extract.md`.)
+
 ## Confrontation
 - Concepts et règles touchés : <identifiants>
-- Exigences touchées : <identifiants>
 - Contradictions : <aucune | liste>
 - Classement : évolution voulue | erreur corrigée dans la demande | ambiguïté (voir « À clarifier »)
 
@@ -280,4 +292,79 @@ C'est l'**unique registre du pourquoi** : décisions métier, concepts retirés 
 ## Rapport de cohérence
 - Écarts trouvés : <liste, chacun classé évolution voulue / dérive / doute>
 - Décisions à valider : <liste>
+````
+
+## Modèle : `doc/changes/<nom>/technical-plan.md`
+
+````markdown
+# Plan technique — <nom>
+
+## Couches et modules touchés
+- 
+
+## Découpage
+<Étapes de développement, dans l'ordre, chacune rattachée aux critères qu'elle fait passer.>
+
+## Données
+<Modèles, migrations, volumes. « Aucune » si rien.>
+
+## Risques
+- 
+
+## Contrôle de cohérence avec le plan d'interface
+<Rempli par l'architecte lors de sa passe légère : compatible, ou points à reprendre.>
+````
+
+## Modèle : `doc/changes/<nom>/ui-plan.md`
+
+````markdown
+# Plan d'interface — <nom>
+
+## Écrans et composants touchés
+- 
+
+## Pour chaque composant
+- Contenu attendu : <une ligne, un paragraphe, une liste… et sa longueur typique>
+- Taille et place : <dimensionnée pour le contenu attendu, pas pour le minimum>
+- États : vide, rempli, erreur, chargement, désactivé
+- Clavier et accessibilité : <ordre de tabulation, raccourcis, libellés>
+
+## Règles appliquées
+<Lois UI et constantes utilisées, par leur nom.>
+````
+
+## Modèle : `doc/changes/<nom>/test-plan.md`
+
+Les cas de test sont les critères d'acceptation, dans la spécification ; ils n'apparaissent pas ici.
+
+````markdown
+# Plan de test — <nom>
+
+## Critères ajoutés à la spécification
+<Identifiants des cas limites et erreurs que le QA a ajoutés.>
+
+## Jeux de données
+- 
+
+## Vérifications manuelles
+<Ce que les tests automatiques ne couvrent pas : parcours réel, rendu, ressenti.>
+- [ ] 
+````
+
+## Modèle : `doc/changes/<nom>/review.md`
+
+Un passage par évaluation du juge ; le **dernier** verdict doit être « Accepté » pour archiver.
+
+````markdown
+# Revue — <nom>
+
+## Passage 1
+Verdict : À reprendre
+
+### Points
+- [bloquant] <fichier:ligne> — <problème> — <attendu>
+- [mineur] …
+
+## Passage 2
+Verdict : Accepté
 ````

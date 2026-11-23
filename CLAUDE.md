@@ -9,12 +9,14 @@ Ce repo définit les bonnes pratiques ; les projets de développement les appliq
 - **Ici** : le *quoi* et le *pourquoi* (méthodes, formats, règles, seuils), et les **contrôles communs** quand ils ne dépendent pas de la stack (`tools/toolbox-checks/` : ils ne lisent que du Markdown et des annotations de test). Ils sont écrits une seule fois, testés, et copiés tels quels dans les projets.
 - **Dans chaque projet** : uniquement ce qui dépend de sa stack (commande de tests, couverture, test de mutation, CI), avec les seuils fixés ici.
 - Avant de renvoyer une implémentation aux projets, vérifier si elle dépend vraiment de la stack ; sinon, elle appartient à ce repo.
+- **Python pour la structure, le LLM pour le sens.** Les contrôles en code ne vérifient que ce qui est vrai ou faux sans interprétation (un fichier existe, une case est cochée, un identifiant cité existe, un mot précis de la liste est présent). Toute vérification qui demande d'interpréter (complétude d'une spécification, pertinence, synonymes, cohérence métier) va dans la liste de contrôle d'un agent, jamais dans le code. Ne pas faire grossir les contrôles en code avec des règles au cas par cas.
 - Rédiger chaque fiche pour qu'un projet puisse l'appliquer sans autre contexte : règles explicites, seuils chiffrés, modèles à copier.
 
 ## Utiliser ce repo dans un projet
 
 - Le `CLAUDE.md` du projet renvoie vers les fiches à appliquer (au minimum `developer/driven-development/development-workflow.md` et `developer/ai-agent/agent-practices.md`) et décrit comment il implémente la partie propre à sa stack.
 - Le projet copie `tools/toolbox-checks/` et active son hook (voir son README).
+- S'il travaille avec l'équipe d'agents, il copie `tools/agents/` dans `.claude/agents/` (voir `developer/ai-agent/agent-team.md`).
 
 ## Contenu
 
@@ -31,11 +33,12 @@ developer/
   archi/              Architecture
   driven-development/ Flux de développement et méthodes « pilotées par » (ontologie, spécification)
   security/           Sécurité (ex. dependencies.md)
-  ai-agent/           Comportement de l'agent IA sur un projet (agent-practices.md)
+  ai-agent/           Comportement de l'agent IA (agent-practices.md) et équipe d'agents séquentielle (agent-team.md)
   ...                 Bonnes pratiques dev
 design/
   ux-ui/          Bonnes pratiques design (ex. law-of-ui.md)
 tools/
+  agents/         Définitions des agents de l'équipe (architecte, QA, designer, développeur, juge), à copier dans .claude/agents/
   toolbox-checks/ Contrôles communs indépendants de la stack (Python 3.9+, sans dépendance), avec leurs tests
 constants/        Constantes (palettes, tokens…) — à créer au besoin
 ```

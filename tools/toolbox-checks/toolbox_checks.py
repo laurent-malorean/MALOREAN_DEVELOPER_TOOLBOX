@@ -8,7 +8,8 @@ developer/driven-development/development-workflow.md :
   traceability   identifiants des tests connus, chaque exigence a un critère,
                  critères et règles testables couverts par un test
                  (--strict : bloquant ; --write : génère les lignes « Test »)
-  commit         vocabulary + traceability, puis commandes du projet
+  extract        génère l'extrait de spécification de chaque changement en cours
+  commit         vocabulary + traceability + extraits à jour, puis commandes du projet
   release        contrôles avant archivage d'un changement (--archive : archive)
 
 Python 3.9+, bibliothèque standard uniquement.
@@ -42,6 +43,13 @@ ANNOTATION = re.compile(rf"@(spec|rule)\s+({ID})")
 CLARIFY = re.compile(r"À clarifier\s*:", re.IGNORECASE)
 TEST_LINE = re.compile(r"^\s*-\s*Test\s*:")
 UNCHECKED_TASK = re.compile(r"^\s*-\s*\[ \]")
+RULE_CITATION = re.compile(rf"ontologie\s*›\s*({ID})")
+VERDICT = re.compile(r"Verdict\s*:\s*(Accepté|À reprendre)", re.IGNORECASE)
+EXTRACT_NAME = "spec-extract.md"
+EXTRACT_HEADER = (
+    "<!-- Généré par toolbox-checks à partir de doc/specs/ et doc/ontology/ — ne pas modifier.\n"
+    "     Régénérer : python3 tools/toolbox-checks/toolbox_checks.py extract -->"
+)
 LETTERS = re.compile(r"[^\W\d_]+")
 CAMEL_PART = re.compile(r"[A-ZÀ-Þ]?[a-zß-ÿ]+|[A-ZÀ-Þ]+(?![a-zß-ÿ])")
 
@@ -192,7 +200,8 @@ def ontology_rules(cfg: Config) -> Dict[str, dict]:
         for cells in _table_rows(_section(path.read_text(encoding="utf-8"), "Règles")):
             if cells and ID_RE.match(cells[0]):
                 testable = not (len(cells) > 2 and cells[2].lower().startswith("non"))
-                rules.setdefault(cells[0], {"file": path, "testable": testable, "count": 0})
+                text = cells[1] if len(cells) > 1 else ""
+                rules.setdefault(cells[0], {"file": path, "testable": testable, "count": 0, "text": text})
                 rules[cells[0]]["count"] += 1
     return rules
 
@@ -220,7 +229,7 @@ def check_vocabulary(cfg: Config) -> List[str]:
         return []
     hits = []
     for path, text in iter_text_files(cfg, [cfg.root]):
-        if _is_under(path, cfg.archive_dir):
+        if _is_under(path, cfg.archive_dir) or path.name == EXTRACT_NAME:
             continue
         in_ontology = _is_under(path, cfg.ontology_dir)
         in_refused_table = False
@@ -402,6 +411,105 @@ def write_test_lines(cfg: Config) -> List[Path]:
     return changed
 
 
+# --------------------------------------------------------------------------- extrait
+
+def _requirement_blocks(cfg: Config) -> Dict[str, List[str]]:
+    """Texte de chaque exigence (titre, énoncé, critères), tel qu'écrit dans la spécification."""
+    blocks: Dict[str, List[str]] = {}
+    for path in _markdown_files(cfg.specs_dir):
+        current: Optional[str] = None
+        in_fence = False
+        for line in path.read_text(encoding="utf-8").split("\n"):
+            if line.lstrip().startswith(("```", "~~~")):
+                in_fence = not in_fence
+            elif not in_fence:
+                m = REQUIREMENT_HEADING.match(line)
+                if m:
+                    current = m.group(1)
+                    blocks[current] = []
+                elif re.match(r"^#{1,3}\s", line):
+                    current = None
+            if current:
+                blocks[current].append(line)
+    for lines in blocks.values():
+        while lines and not lines[-1].strip():
+            lines.pop()
+    return blocks
+
+
+def touched_ids(change: Path) -> Tuple[List[str], List[str]]:
+    """Identifiants listés dans la rubrique « Exigences touchées » de la proposition."""
+    proposal = change / "proposal.md"
+    if not proposal.exists():
+        return [], [f"{change.name} : proposal.md manquant"]
+    text = proposal.read_text(encoding="utf-8")
+    if not any(l.strip() == "## Exigences touchées" for _, l in _lines_outside_fences(text)):
+        return [], [f"{change.name}/proposal.md : rubrique « ## Exigences touchées » manquante"]
+    ids: List[str] = []
+    for line in _section(text, "Exigences touchées"):
+        for identifier in re.findall(rf"(?<![\w.-])({ID})(?![\w.-])", line):
+            if identifier not in ids:
+                ids.append(identifier)
+    return ids, []
+
+
+def build_extract(cfg: Config, change: Path) -> Tuple[str, List[str]]:
+    """(texte de l'extrait, erreurs) pour un changement."""
+    change = Path(change).resolve()
+    ids, errors = touched_ids(change)
+    if errors:
+        return "", errors
+    blocks = _requirement_blocks(cfg)
+    criteria = parse_specs(cfg).criteria
+    rules = ontology_rules(cfg)
+    parts = [EXTRACT_HEADER, "", f"# Extrait de spécification — {change.name}", "", "## Exigences", ""]
+    cited: List[str] = []
+    for identifier in ids:
+        if identifier in blocks:
+            parts.extend(blocks[identifier] + [""])
+            for line in blocks[identifier]:
+                for rule in RULE_CITATION.findall(line):
+                    if rule not in cited:
+                        cited.append(rule)
+        elif identifier in criteria:
+            errors.append(f"{change.name}/proposal.md : « {identifier} » est un critère ; lister son exigence")
+        else:
+            errors.append(f"{change.name}/proposal.md : exigence inconnue « {identifier} »")
+    if not ids:
+        parts.extend(["Aucune exigence touchée.", ""])
+    parts.extend(["## Règles de l'ontologie appliquées", ""])
+    for rule in cited:
+        if rule in rules:
+            parts.append(f"- `{rule}` : {rules[rule]['text']}")
+        else:
+            errors.append(f"règle citée inconnue « {rule} »")
+    if not cited:
+        parts.append("Aucune.")
+    return "\n".join(parts) + "\n", errors
+
+
+def ongoing_changes(cfg: Config) -> List[Path]:
+    changes = cfg.doc / "changes"
+    if not changes.is_dir():
+        return []
+    return sorted(d for d in changes.iterdir() if d.is_dir() and d.name != "archive")
+
+
+def sync_extracts(cfg: Config) -> List[str]:
+    """Régénère les extraits périmés. Renvoie les messages : fichiers écrits et erreurs."""
+    messages = []
+    for change in ongoing_changes(cfg):
+        text, errors = build_extract(cfg, change)
+        if errors:
+            messages.extend(f"✗ {e}" for e in errors)
+            continue
+        target = change / EXTRACT_NAME
+        if not target.exists() or target.read_text(encoding="utf-8") != text:
+            target.write_text(text, encoding="utf-8")
+            messages.append(f"régénéré : {_rel(cfg, target)}")
+    return messages
+
+
 # --------------------------------------------------------------------------- livraison
 
 def check_release(cfg: Config, change: Path) -> List[str]:
@@ -423,6 +531,14 @@ def check_release(cfg: Config, change: Path) -> List[str]:
         rows = [r for r in _table_rows(_section(text, "Bilan")) if r and r[0] and not r[0].startswith("<")]
         if not rows:
             errors.append(f"{_rel(cfg, tasks)} : bilan vide")
+
+    review = change / "review.md"
+    if not review.exists():
+        errors.append(f"{_rel(cfg, change)} : review.md manquant (verdict du juge)")
+    else:
+        verdicts = VERDICT.findall(review.read_text(encoding="utf-8"))
+        if not verdicts or verdicts[-1].lower() != "accepté":
+            errors.append(f"{_rel(cfg, review)} : dernier verdict du juge non « Accepté »")
 
     for path in _markdown_files(cfg.specs_dir) + _markdown_files(cfg.ontology_dir) + _markdown_files(change):
         for number, line in _lines_outside_fences(path.read_text(encoding="utf-8")):
@@ -469,6 +585,7 @@ def main(argv: Optional[List[str]] = None) -> int:
     t = sub.add_parser("traceability", help="lien critères / règles / tests")
     t.add_argument("--strict", action="store_true", help="un critère ou une règle sans test bloque")
     t.add_argument("--write", action="store_true", help="régénère les lignes « Test » et la couverture")
+    sub.add_parser("extract", help="génère l'extrait de spécification des changements en cours")
     sub.add_parser("commit", help="contrôles avant commit")
     r = sub.add_parser("release", help="contrôles avant archivage d'un changement")
     r.add_argument("change", help="dossier du changement (doc/changes/<nom>)")
@@ -486,10 +603,25 @@ def main(argv: Optional[List[str]] = None) -> int:
         errors, warnings = check_traceability(cfg, strict=args.strict)
         return 0 if _report("Traçabilité", errors, warnings) else 1
 
+    if args.command == "extract":
+        messages = sync_extracts(cfg)
+        for m in messages:
+            print(f"  {m}")
+        errors = [m for m in messages if m.startswith("✗")]
+        print(f"[Extraits] {'OK' if not errors else f'{len(errors)} erreur(s)'}")
+        return 0 if not errors else 1
+
     if args.command == "commit":
         ok = _report("Vocabulaire", check_vocabulary(cfg))
         errors, warnings = check_traceability(cfg)
         ok = _report("Traçabilité", errors, warnings) and ok
+        messages = sync_extracts(cfg)
+        extract_errors = [m[2:] for m in messages if m.startswith("✗")]
+        extract_errors += [
+            f"{m} — ajoutez-le au commit (git add) puis recommitez"
+            for m in messages if not m.startswith("✗")
+        ]
+        ok = _report("Extraits", extract_errors) and ok
         for command in cfg.commit_commands:
             print(f"[Projet] {command}")
             if subprocess.run(command, shell=True, cwd=cfg.root).returncode != 0:

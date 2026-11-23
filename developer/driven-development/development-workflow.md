@@ -6,6 +6,7 @@ voir_aussi:
   - ontology-driven-development.md
   - spec-driven-development.md
   - ../security/dependencies.md
+  - ../ai-agent/agent-team.md
 ---
 
 # Flux de développement
@@ -36,7 +37,7 @@ Dans tous les cas, le cycle TDD s'applique.
 
 ## L'ordre de travail
 
-Toute évolution suit cet ordre, sans sauter d'étape.
+Toute évolution suit cet ordre, sans sauter d'étape. Quand le travail est mené par des agents, qui mène chaque étape et quel fichier il produit est décrit dans `../ai-agent/agent-team.md`.
 
 ### 1. Confronter la demande
 
@@ -48,7 +49,7 @@ Avant tout code, lire l'ontologie et la spécification de référence. Identifie
 
 ### 2. Ouvrir le changement
 
-Créer `doc/changes/<nom-du-changement>/` (voir le format dans `spec-driven-development.md`) : proposition, tâches, conception si utile.
+Créer `doc/changes/<nom-du-changement>/` (voir le format dans `spec-driven-development.md`) : proposition avec ses « Exigences touchées », tâches, puis selon la taille du changement plan technique, plan de test et plan d'interface.
 
 ### 3. Mettre à jour les références
 
@@ -145,6 +146,8 @@ Code exclu de la mesure : uniquement le code généré et la configuration, list
 | Chaque critère et chaque règle testable a un test | Avant archivage | Oui | Ce fichier |
 | Aucun « À clarifier » restant, aucune hypothèse non validée | Avant archivage | Oui | Méthode par la spécification |
 | Toutes les tâches cochées, bilan rempli | Avant archivage | Oui | Méthode par la spécification |
+| Extrait de spécification de chaque PR à jour | Chaque commit | Oui | Méthode par la spécification |
+| Dernier verdict du juge « Accepté » | Avant archivage | Oui | `../ai-agent/agent-team.md` |
 | Test de mutation : seuil et sans recul | CI / avant archivage | Oui | Ce fichier |
 | Cohérence métier (rapport par l'IA) | Avant archivage | Non, décision humaine | Ce fichier |
 | Relecture humaine | Avant intégration | Oui | Ce fichier |
@@ -174,4 +177,5 @@ Les contrôles lancés dépendent de ce qu'on a touché. Un échec qui se voit e
 |---|---|
 | Chaque commit | `toolbox_checks.py commit` (via le hook git) |
 | Mise à jour des lignes « Test » | `toolbox_checks.py traceability --write` |
+| Mise à jour des extraits de spécification | `toolbox_checks.py extract` |
 | Avant archivage | `toolbox_checks.py release doc/changes/<nom> --archive` |

@@ -207,6 +207,7 @@ class ReleaseTest(Base):
     def _change(self, tasks):
         self.p.write("doc/changes/demo/proposal.md", "# Changement — demo\n")
         self.p.write("doc/changes/demo/tasks.md", tasks)
+        self.p.write("doc/changes/demo/review.md", "## Passage 1\nVerdict : Accepté\n")
         self.p.write(
             "tests/test_a.py",
             "# @spec bidules.creer.nominal\n# @spec bidules.creer.erreur\n# @rule bidule.jamais-vide\n",
@@ -259,6 +260,115 @@ class ReleaseTest(Base):
         self.assertFalse(change.exists())
         self.assertEqual(target.name, "2026-11-23-demo")
         self.assertTrue((target / "tasks.md").exists())
+
+
+PROPOSAL = """\
+# Changement — demo
+
+## Exigences touchées
+- `bidules.creer`
+"""
+
+SPEC_WITH_RULE = SPEC.replace(
+    "### bidules.creer\n",
+    "### bidules.creer\nRègle appliquée : ontologie › bidule.jamais-vide\n\n",
+)
+
+
+class ExtractTest(Base):
+    def setUp(self):
+        super().setUp()
+        self.p.write("doc/specs/bidules.md", SPEC_WITH_RULE)
+        self.p.write("doc/specs/autre.md", "### autre.chose\nLe système doit X.\n\n##### autre.chose.cas\n- a\n")
+        self.change = self.p.root / "doc/changes/demo"
+        self.p.write("doc/changes/demo/proposal.md", PROPOSAL)
+
+    def test_extract_contains_touched_requirement_with_criteria_and_rules(self):
+        text, errors = tc.build_extract(self.p.config(), self.change)
+        self.assertEqual(errors, [])
+        self.assertIn("ne pas modifier", text)
+        self.assertIn("### bidules.creer", text)
+        self.assertIn("##### bidules.creer.nominal", text)
+        self.assertIn("##### bidules.creer.erreur", text)
+        self.assertIn("`bidule.jamais-vide` : Un bidule n'est jamais vide.", text)
+        self.assertNotIn("autre.chose", text)
+        self.assertNotIn("Hypothèses", text)
+
+    def test_unknown_id_is_error(self):
+        self.p.write("doc/changes/demo/proposal.md", PROPOSAL + "- `bidules.inconnue`\n")
+        _, errors = tc.build_extract(self.p.config(), self.change)
+        self.assertTrue(any("bidules.inconnue" in e for e in errors))
+
+    def test_criterion_id_is_error_with_hint(self):
+        self.p.write("doc/changes/demo/proposal.md", PROPOSAL + "- `bidules.creer.nominal`\n")
+        _, errors = tc.build_extract(self.p.config(), self.change)
+        self.assertTrue(any("exigence" in e for e in errors))
+
+    def test_missing_section_is_error(self):
+        self.p.write("doc/changes/demo/proposal.md", "# Changement — demo\n")
+        _, errors = tc.build_extract(self.p.config(), self.change)
+        self.assertTrue(any("Exigences touchées" in e for e in errors))
+
+    def test_sync_writes_then_is_stable(self):
+        cfg = self.p.config()
+        self.assertEqual(len(tc.sync_extracts(cfg)), 1)  # créé
+        self.assertTrue((self.change / "spec-extract.md").exists())
+        self.assertEqual(tc.sync_extracts(cfg), [])  # à jour
+
+    def test_spec_change_makes_extract_stale(self):
+        cfg = self.p.config()
+        tc.sync_extracts(cfg)
+        spec = self.p.root / "doc/specs/bidules.md"
+        spec.write_text(spec.read_text(encoding="utf-8").replace("l'enregistrer", "le conserver"), encoding="utf-8")
+        self.assertEqual(len(tc.sync_extracts(cfg)), 1)
+        self.assertIn("le conserver", (self.change / "spec-extract.md").read_text(encoding="utf-8"))
+
+    def test_archived_changes_are_not_synced(self):
+        self.p.write("doc/changes/archive/2026-01-01-vieux/proposal.md", PROPOSAL)
+        tc.sync_extracts(self.p.config())
+        self.assertFalse((self.p.root / "doc/changes/archive/2026-01-01-vieux/spec-extract.md").exists())
+
+    def test_extract_is_exempt_from_vocabulary(self):
+        self.p.write("doc/changes/demo/spec-extract.md", "Zorglub\n")
+        self.assertEqual(tc.check_vocabulary(self.p.config()), [])
+
+    def test_commit_regenerates_stale_extract_and_fails(self):
+        import contextlib
+        import io
+
+        out = io.StringIO()
+        with contextlib.redirect_stdout(out):
+            code = tc.main(["--root", str(self.p.root), "commit"])
+        self.assertEqual(code, 1)
+        self.assertIn("git add", out.getvalue())
+        with contextlib.redirect_stdout(io.StringIO()):
+            self.assertEqual(tc.main(["--root", str(self.p.root), "extract"]), 0)
+
+
+class ReviewVerdictTest(Base):
+    def _change(self, review):
+        self.p.write("doc/changes/demo/proposal.md", "# P\n")
+        self.p.write("doc/changes/demo/tasks.md", ReleaseTest.DONE)
+        if review is not None:
+            self.p.write("doc/changes/demo/review.md", review)
+        self.p.write(
+            "tests/test_a.py",
+            "# @spec bidules.creer.nominal\n# @spec bidules.creer.erreur\n# @rule bidule.jamais-vide\n",
+        )
+        return self.p.root / "doc/changes/demo"
+
+    def test_missing_review_blocks(self):
+        errors = tc.check_release(self.p.config(), self._change(None))
+        self.assertTrue(any("review.md" in e for e in errors))
+
+    def test_last_verdict_must_be_accepted(self):
+        review = "## Passage 1\nVerdict : Accepté\n\n## Passage 2\nVerdict : À reprendre\n"
+        errors = tc.check_release(self.p.config(), self._change(review))
+        self.assertTrue(any("verdict" in e.lower() for e in errors))
+
+    def test_accepted_last_verdict_passes(self):
+        review = "## Passage 1\nVerdict : À reprendre\n\n## Passage 2\nVerdict : Accepté\n"
+        self.assertEqual(tc.check_release(self.p.config(), self._change(review)), [])
 
 
 class SelfExclusionTest(Base):
@@ -375,6 +485,7 @@ class CliTest(Base):
         self._complete_tests()
         self.p.write("doc/changes/demo/proposal.md", "# P\n")
         self.p.write("doc/changes/demo/tasks.md", ReleaseTest.DONE)
+        self.p.write("doc/changes/demo/review.md", "Verdict : Accepté\n")
         code, out = self.run_cli("release", "doc/changes/demo", "--archive")
         self.assertEqual(code, 0, out)
         self.assertIn("archivé", out)
